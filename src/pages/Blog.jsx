@@ -6,10 +6,8 @@ import {
   FiUser, 
   FiArrowRight, 
   FiArrowLeft,
-  FiX, 
-  FiEdit3, 
-  FiCheckCircle, 
-  FiSend 
+  FiX,
+  FiBookOpen
 } from 'react-icons/fi';
 import { BLOG_POSTS } from '../data/academyData';
 import Button from '../components/Button';
@@ -20,14 +18,6 @@ export default function Blog() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeArticle, setActiveArticle] = useState(null);
-  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
-  const [guestPostSubmitted, setGuestPostSubmitted] = useState(false);
-  const [guestFormData, setGuestFormData] = useState({
-    title: '',
-    author: '',
-    email: '',
-    content: ''
-  });
 
   // If URL has /blog/:id, set activeArticle
   useEffect(() => {
@@ -52,26 +42,6 @@ export default function Blog() {
     );
   }, [searchQuery]);
 
-  const handleGuestInputChange = (e) => {
-    const { name, value } = e.target;
-    setGuestFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleGuestSubmit = (e) => {
-    e.preventDefault();
-    setGuestPostSubmitted(true);
-  };
-
-  const resetGuestForm = () => {
-    setGuestFormData({
-      title: '',
-      author: '',
-      email: '',
-      content: ''
-    });
-    setGuestPostSubmitted(false);
-    setIsSubmitModalOpen(false);
-  };
 
   const openArticle = (post) => {
     setActiveArticle(post);
@@ -113,20 +83,9 @@ export default function Blog() {
           <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-3 drop-shadow-xs">
             Community Blogs
           </h1>
-          <p className="text-sm sm:text-base text-slate-200 max-w-xl mx-auto leading-relaxed mb-6 font-normal">
+          <p className="text-sm sm:text-base text-slate-200 max-w-xl mx-auto leading-relaxed font-normal">
             Share insights, stories and learning experiences 
           </p>
-
-          <div className="flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsSubmitModalOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-700 hover:bg-brand-600 text-white text-xs sm:text-sm font-semibold shadow-md hover:shadow-lg transition-all"
-            >
-              <FiEdit3 />
-              <span>Write a Blog</span>
-            </button>
-          </div>
         </div>
       </section>
 
@@ -327,143 +286,6 @@ export default function Blog() {
         </div>
       </main>
 
-      {/* Write a Blog Modal matching live website capability */}
-      {isSubmitModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn"
-          onClick={() => setIsSubmitModalOpen(false)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-scaleUp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="font-heading text-lg font-bold text-slate-900">
-                  Write a Blog
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Share insights, stories and learning experiences
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSubmitModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
-              >
-                <FiX className="text-xl" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {guestPostSubmitted ? (
-                <div className="text-center py-6 space-y-3">
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
-                    <FiCheckCircle />
-                  </div>
-                  <h4 className="font-heading font-bold text-slate-900 text-base">
-                    Blog submitted for approval!
-                  </h4>
-                  <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
-                    Our team will review your post before it appears in Community Blogs.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={resetGuestForm}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-brand-800 text-white hover:bg-brand-900 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleGuestSubmit} className="space-y-3.5">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Title <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="title"
-                      required
-                      placeholder="Title of your blog"
-                      value={guestFormData.title}
-                      onChange={handleGuestInputChange}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-brand-700 transition-all"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                        Author Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="author"
-                        required
-                        placeholder="Your name"
-                        value={guestFormData.author}
-                        onChange={handleGuestInputChange}
-                        className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-brand-700 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                        Email <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        required
-                        placeholder="your@email.com"
-                        value={guestFormData.email}
-                        onChange={handleGuestInputChange}
-                        className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-brand-700 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Content <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="content"
-                      required
-                      rows="5"
-                      placeholder="Write your article content here..."
-                      value={guestFormData.content}
-                      onChange={handleGuestInputChange}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-brand-700 transition-all resize-none"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsSubmitModalOpen(false)}
-                      className="px-3.5 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      icon={FiSend}
-                      iconPosition="right"
-                    >
-                      Submit Blog
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

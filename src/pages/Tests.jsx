@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   FiAward, 
   FiClock, 
@@ -35,6 +35,21 @@ const LIKERT_OPTIONS = [
   { value: 4, label: 'Agree', weight: 1 },
   { value: 5, label: 'Strongly Agree', weight: 2 },
 ];
+
+const getCorrectIndex = (q) => {
+  if (!q || q.correctAnswer === undefined || q.correctAnswer === null) return -1;
+  if (typeof q.correctAnswer === 'string' && q.correctAnswer.length === 1) {
+    const idx = ['a', 'b', 'c', 'd'].indexOf(q.correctAnswer.toLowerCase());
+    if (idx !== -1) return idx;
+  }
+  if (typeof q.correctAnswer === 'number') {
+    return q.correctAnswer;
+  }
+  if (Array.isArray(q.options)) {
+    return q.options.indexOf(q.correctAnswer);
+  }
+  return -1;
+};
 
 export default function Tests() {
   // Authentication State (defaults to unauthenticated, asks to login first)
@@ -183,18 +198,37 @@ export default function Tests() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Live stats tracking correct/missed answers on the spot
+  const liveStats = useMemo(() => {
+    if (activeTestId === 'leadership') {
+      return { correct: 0, missed: 0 };
+    }
+    let correct = 0;
+    let missed = 0;
+    questionsList.forEach((q) => {
+      const sel = userAnswers[q.id];
+      if (sel !== undefined) {
+        const correctIdx = getCorrectIndex(q);
+        const selIdx = typeof sel === 'number' ? sel : q.options?.indexOf(sel);
+        if (selIdx === correctIdx) {
+          correct++;
+        } else {
+          missed++;
+        }
+      }
+    });
+    return { correct, missed };
+  }, [activeTestId, questionsList, userAnswers]);
+
   // Grammar Test Scoring calculations
   const calculateGrammarScore = () => {
     let correctCount = 0;
     questionsList.forEach((q) => {
       const selected = userAnswers[q.id];
       if (selected !== undefined) {
-        if (typeof q.correctAnswer === 'string' && q.correctAnswer.length === 1) {
-          const letterIndex = ['a', 'b', 'c', 'd'].indexOf(q.correctAnswer.toLowerCase());
-          if (selected === letterIndex || selected === q.options[letterIndex]) {
-            correctCount++;
-          }
-        } else if (selected === q.correctAnswer) {
+        const correctIdx = getCorrectIndex(q);
+        const selectedIdx = typeof selected === 'number' ? selected : q.options?.indexOf(selected);
+        if (selectedIdx === correctIdx) {
           correctCount++;
         }
       }
@@ -840,12 +874,11 @@ export default function Tests() {
                         <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar border border-slate-200 rounded-xl p-4 bg-slate-50/50">
                           {questionsList.map((q, idx) => {
                             const userAnswer = userAnswers[q.id];
-                            const letterIndex = typeof q.correctAnswer === 'string' && q.correctAnswer.length === 1
-                              ? ['a', 'b', 'c', 'd'].indexOf(q.correctAnswer.toLowerCase())
+                            const correctIdx = getCorrectIndex(q);
+                            const userIdx = userAnswer !== undefined
+                              ? (typeof userAnswer === 'number' ? userAnswer : q.options?.indexOf(userAnswer))
                               : -1;
-                            const isCorrect = letterIndex !== -1 
-                              ? userAnswer === letterIndex || userAnswer === q.options[letterIndex]
-                              : userAnswer === q.correctAnswer;
+                            const isCorrect = userIdx !== -1 && userIdx === correctIdx;
 
                             return (
                               <div key={q.id} className="p-3 rounded-lg bg-white border border-slate-200 text-xs space-y-1">
@@ -864,11 +897,11 @@ export default function Tests() {
                                   )}
                                 </div>
                                 <p className="text-slate-500">
-                                  Your answer: <span className="font-medium text-slate-700">{userAnswer !== undefined ? (typeof userAnswer === 'number' ? q.options[userAnswer] : userAnswer) : 'Unanswered'}</span>
+                                  Your answer: <span className="font-medium text-slate-700">{userIdx !== -1 ? `${['A', 'B', 'C', 'D'][userIdx] || ''}: ${q.options[userIdx]}` : 'Unanswered'}</span>
                                 </p>
-                                {!isCorrect && (
+                                {!isCorrect && correctIdx !== -1 && (
                                   <p className="text-emerald-700 font-medium">
-                                    Correct answer: {letterIndex !== -1 ? q.options[letterIndex] : q.correctAnswer}
+                                    Correct answer: {['A', 'B', 'C', 'D'][correctIdx]}: {q.options[correctIdx]}
                                   </p>
                                 )}
                               </div>
@@ -925,8 +958,28 @@ export default function Tests() {
                 <FiArrowLeft />
                 <span>Exit Assessment</span>
               </button>
-              <div className="text-xs font-semibold text-slate-600">
-                Question <span className="text-slate-900 font-bold">{currentQuestionIndex + 1}</span> of {questionsList.length}
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-semibold text-slate-600">
+                  Question <span className="text-slate-900 font-bold">{currentQuestionIndex + 1}</span> of {questionsList.length}
+                </div>
+                {activeTestId !== 'leadership' && userAnswers[questionsList[currentQuestionIndex]?.id] !== undefined && (
+                  (() => {
+                    const currentQ = questionsList[currentQuestionIndex];
+                    const sel = userAnswers[currentQ?.id];
+                    const cIdx = getCorrectIndex(currentQ);
+                    const sIdx = typeof sel === 'number' ? sel : currentQ?.options?.indexOf(sel);
+                    const isRight = sIdx === cIdx;
+                    return (
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                        isRight 
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                          : 'bg-red-100 text-red-700 border border-red-200'
+                      }`}>
+                        {isRight ? <><FiCheck className="stroke-[2.5]" /> Correct</> : <><FiX className="stroke-[2.5]" /> Missed</>}
+                      </span>
+                    );
+                  })()
+                )}
               </div>
             </div>
 
@@ -985,34 +1038,164 @@ export default function Tests() {
                     })}
                   </div>
                 ) : (
-                  /* 4 Choice Selectors for Grammar Tests */
-                  <div className="space-y-2.5">
-                    {questionsList[currentQuestionIndex]?.options?.map((opt, optIdx) => {
-                      const qId = questionsList[currentQuestionIndex].id;
-                      const isSelected = userAnswers[qId] === optIdx || userAnswers[qId] === opt;
-                      const optionLabel = ['A', 'B', 'C', 'D'][optIdx] || optIdx + 1;
-                      return (
-                        <button
-                          key={optIdx}
-                          type="button"
-                          onClick={() => handleSelectOption(qId, optIdx)}
-                          className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm font-medium transition-all flex items-center gap-3 ${
-                            isSelected
-                              ? 'border-brand-700 bg-brand-50/80 text-brand-900 shadow-xs'
-                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
-                            isSelected ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-600'
+                  /* 4 Choice Selectors for Grammar Tests with Instant Correct/Incorrect Feedback */
+                  (() => {
+                    const currentQ = questionsList[currentQuestionIndex];
+                    const qId = currentQ?.id;
+                    const userSelection = userAnswers[qId];
+                    const hasSelected = userSelection !== undefined;
+                    const correctIdx = getCorrectIndex(currentQ);
+                    const userSelectedIndex = hasSelected
+                      ? (typeof userSelection === 'number' ? userSelection : currentQ?.options?.indexOf(userSelection))
+                      : -1;
+                    const isUserCorrect = hasSelected && userSelectedIndex === correctIdx;
+
+                    return (
+                      <div>
+                        <div className="space-y-2.5">
+                          {currentQ?.options?.map((opt, optIdx) => {
+                            const optionLabel = ['A', 'B', 'C', 'D'][optIdx] || optIdx + 1;
+                            const isThisOptionSelected = userSelectedIndex === optIdx;
+                            const isThisOptionCorrect = optIdx === correctIdx;
+
+                            // Dynamic styles for instant on-the-spot feedback
+                            let buttonClasses = 'border-slate-200 bg-white hover:bg-slate-50 hover:border-brand-400 text-slate-800';
+                            let badgeClasses = 'bg-slate-100 text-slate-700';
+                            let indicatorNode = null;
+
+                            if (hasSelected) {
+                              if (isThisOptionSelected && isThisOptionCorrect) {
+                                // User picked this and it is correct
+                                buttonClasses = 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/20 shadow-xs';
+                                badgeClasses = 'bg-emerald-600 text-white';
+                                indicatorNode = (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-md shrink-0">
+                                    <FiCheck className="stroke-[3]" /> Correct
+                                  </span>
+                                );
+                              } else if (isThisOptionSelected && !isThisOptionCorrect) {
+                                // User picked this and it is wrong
+                                buttonClasses = 'border-red-500 bg-red-50 text-red-950 ring-2 ring-red-400/20 shadow-xs';
+                                badgeClasses = 'bg-red-600 text-white';
+                                indicatorNode = (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-800 bg-red-100 px-2.5 py-1 rounded-md shrink-0">
+                                    <FiX className="stroke-[3]" /> Incorrect
+                                  </span>
+                                );
+                              } else if (!isThisOptionSelected && isThisOptionCorrect) {
+                                // Correct option revealed when user made an incorrect choice
+                                buttonClasses = 'border-emerald-500 bg-emerald-50/50 text-emerald-900 ring-1 ring-emerald-500/30';
+                                badgeClasses = 'bg-emerald-100 text-emerald-800 border border-emerald-300';
+                                indicatorNode = (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md shrink-0">
+                                    <FiCheck /> Correct Answer
+                                  </span>
+                                );
+                              } else {
+                                // Other neutral unselected options
+                                buttonClasses = 'border-slate-200 bg-slate-50/50 text-slate-400 opacity-60 hover:opacity-80';
+                                badgeClasses = 'bg-slate-100 text-slate-400';
+                              }
+                            }
+
+                            return (
+                              <button
+                                key={optIdx}
+                                type="button"
+                                onClick={() => handleSelectOption(qId, optIdx)}
+                                className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm font-medium transition-all flex items-center gap-3 ${buttonClasses}`}
+                              >
+                                <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${badgeClasses}`}>
+                                  {optionLabel}
+                                </span>
+                                <span className="flex-1">{opt}</span>
+                                {indicatorNode}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* On the spot instant feedback banner */}
+                        {hasSelected && correctIdx !== -1 && (
+                          <div className={`mt-6 p-4 sm:p-5 rounded-2xl border transition-all animate-fadeIn ${
+                            isUserCorrect 
+                              ? 'bg-emerald-50/90 border-emerald-200 shadow-xs' 
+                              : 'bg-red-50/90 border-red-200 shadow-xs'
                           }`}>
-                            {optionLabel}
-                          </span>
-                          <span className="flex-1">{opt}</span>
-                          {isSelected && <FiCheck className="text-brand-700 text-base shrink-0 font-bold" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            <div className="flex items-start gap-3.5">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-lg font-bold ${
+                                isUserCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+                              }`}>
+                                {isUserCorrect ? <FiCheckCircle /> : <FiX className="stroke-[2.5]" />}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className={`font-heading font-extrabold text-sm sm:text-base ${
+                                    isUserCorrect ? 'text-emerald-950' : 'text-red-950'
+                                  }`}>
+                                    {isUserCorrect ? 'Correct Answer!' : 'Incorrect Answer'}
+                                  </h4>
+                                  <span className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                    isUserCorrect 
+                                      ? 'bg-emerald-200/90 text-emerald-900' 
+                                      : 'bg-red-200/90 text-red-900'
+                                  }`}>
+                                    {isUserCorrect ? '+1 Point' : '0 Points'}
+                                  </span>
+                                </div>
+
+                                <p className={`text-xs sm:text-sm mt-1 leading-relaxed ${
+                                  isUserCorrect ? 'text-emerald-800' : 'text-red-800'
+                                }`}>
+                                  {isUserCorrect ? (
+                                    <span>
+                                      Great job! Option <strong className="font-bold text-emerald-950">{['A', 'B', 'C', 'D'][correctIdx]}</strong> ({currentQ.options[correctIdx]}) is the correct answer.
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      The correct answer is Option <strong className="font-bold text-slate-900 bg-white px-1.5 py-0.5 rounded border border-red-200">{['A', 'B', 'C', 'D'][correctIdx]}: {currentQ.options[correctIdx]}</strong>.
+                                    </span>
+                                  )}
+                                </p>
+
+                                {/* Direct Next/Submit quick action inside feedback card */}
+                                <div className={`mt-3.5 pt-3 border-t flex items-center justify-between gap-3 ${
+                                  isUserCorrect ? 'border-emerald-200/80' : 'border-red-200/80'
+                                }`}>
+                                  <span className={`text-[11px] font-medium hidden sm:inline ${
+                                    isUserCorrect ? 'text-emerald-700' : 'text-red-700'
+                                  }`}>
+                                    {currentQuestionIndex < questionsList.length - 1
+                                      ? 'Advance to the next question when ready:'
+                                      : 'All done! Proceed to your diagnostic summary:'}
+                                  </span>
+                                  {currentQuestionIndex < questionsList.length - 1 ? (
+                                    <button
+                                      type="button"
+                                      onClick={handleNext}
+                                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-xs ml-auto"
+                                    >
+                                      <span>Next Question</span>
+                                      <FiArrowRight className="text-xs" />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={handleSubmitTest}
+                                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all shadow-xs ml-auto"
+                                    >
+                                      <span>View Final Results</span>
+                                      <FiCheckCircle className="text-xs" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
 
@@ -1030,9 +1213,25 @@ export default function Tests() {
                     <span>Questions Answered</span>
                     <span className="font-bold text-slate-900">{answeredCount} / {questionsList.length}</span>
                   </div>
+                  {activeTestId !== 'leadership' && (
+                    <>
+                      <div className="flex items-center justify-between text-emerald-700 pb-2 border-b border-slate-100">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <FiCheck className="text-emerald-600" /> Correct
+                        </span>
+                        <span className="font-bold">{liveStats.correct}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-red-600 pb-2 border-b border-slate-100">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <FiX className="text-red-500" /> Missed
+                        </span>
+                        <span className="font-bold">{liveStats.missed}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex items-center justify-between text-slate-600 pb-2 border-b border-slate-100">
                     <span>Remaining</span>
-                    <span className="font-bold text-red-600">{remainingCount}</span>
+                    <span className="font-bold text-slate-500">{remainingCount}</span>
                   </div>
                 </div>
 
