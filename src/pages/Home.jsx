@@ -498,7 +498,7 @@ export default function Home() {
           <SectionHeading
             badge="Community Blogs"
             title="Insights from Our Community"
-            subtitle="Share insights, stories and learning experiences ✨"
+            subtitle="Share insights, stories and learning experiences"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
